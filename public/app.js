@@ -38,7 +38,11 @@ async function loadCommunications() {
       return;
     }
 
-    const res = await fetchWrap(`${API_BASE}/communications/${currentFilter.agent}?${params}`);
+    let res = await fetchWrap(`${API_BASE}/communications/${currentFilter.agent}?${params}`);
+    // When a specific agent is selected, show only communications they initiated
+    if (currentFilter.agent !== 'all') {
+      res.communications = res.communications.filter(c => c.origin === currentFilter.agent);
+    }
     renderList(res.communications);
   } catch (err) {
     showToast('Error cargando: ' + err.message);
