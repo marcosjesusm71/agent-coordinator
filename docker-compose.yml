@@ -8,6 +8,8 @@ services:
       - "8287:3008"
     environment:
       - PORT=3008
+    volumes:
+      - ./server/data.json:/app/data.json
     restart: unless-stopped
     networks:
       - default
