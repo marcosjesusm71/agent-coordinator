@@ -26,12 +26,15 @@ async function loadCommunications() {
 
     let url = `${API_BASE}/communications/${currentFilter.agent}`;
     if (currentFilter.agent === 'all') {
-      // Fetch all and filter client-side
+      // Fetch all and filter client-side; deduplicate by id (appears in both agents)
       const [paco, paqui] = await Promise.all([
         fetchWrap(`${API_BASE}/communications/Paco?${params}`),
         fetchWrap(`${API_BASE}/communications/Paqui?${params}`)
       ]);
-      renderList([...paco.communications, ...paqui.communications]);
+      const all = [...paco.communications, ...paqui.communications];
+      const seen = new Map();
+      for (const c of all) seen.set(c.id, c);
+      renderList([...seen.values()]);
       return;
     }
 

@@ -156,6 +156,13 @@ app.put('/api/communications/:id/mark-processed', (req, res) => {
       return res.status(404).json({ error: 'Communication not found' });
     }
 
+    // Auto-answer if still pending (prevents inconsistent state)
+    if (comm.status === 'pending') {
+      comm.answer = 'Process completed';
+      comm.status = 'answered';
+      comm.answeredAt = new Date().toISOString();
+    }
+
     comm.processed = true;
     comm.processedAt = new Date().toISOString();
 

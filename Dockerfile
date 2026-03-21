@@ -6,6 +6,7 @@ COPY server/package*.json ./
 RUN npm install
 
 COPY server/ .
+COPY public/ ./public/
 
 EXPOSE 3008
 
