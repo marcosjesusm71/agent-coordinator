@@ -26,23 +26,29 @@ async function loadCommunications() {
 
     let url = `${API_BASE}/communications/${currentFilter.agent}`;
     if (currentFilter.agent === 'all') {
-      // Fetch all and filter client-side; deduplicate by id (appears in both agents)
+      // Fetch all and deduplicate; when filter=pending, fetch without param and filter client-side
+      // (API filter=pending is destination-based, not what we want for 'all')
+      const paramsAll = new URLSearchParams();
       const [paco, paqui] = await Promise.all([
-        fetchWrap(`${API_BASE}/communications/Paco?${params}`),
-        fetchWrap(`${API_BASE}/communications/Paqui?${params}`)
+        fetchWrap(`${API_BASE}/communications/Paco`),
+        fetchWrap(`${API_BASE}/communications/Paqui`)
       ]);
-      const all = [...paco.communications, ...paqui.communications];
+      let all = [...paco.communications, ...paqui.communications];
       const seen = new Map();
       for (const c of all) seen.set(c.id, c);
-      renderList([...seen.values()]);
+      all = [...seen.values()];
+      if (currentFilter.status === 'pending') {
+        all = all.filter(c => c.status === 'pending');
+      } else if (currentFilter.status === 'answered') {
+        all = all.filter(c => c.status === 'answered');
+      }
+      renderList(all);
       return;
     }
 
     let res = await fetchWrap(`${API_BASE}/communications/${currentFilter.agent}?${params}`);
     // When a specific agent is selected, show only communications they initiated
-    if (currentFilter.agent !== 'all') {
-      res.communications = res.communications.filter(c => c.origin === currentFilter.agent);
-    }
+    res.communications = res.communications.filter(c => c.origin === currentFilter.agent);
     renderList(res.communications);
   } catch (err) {
     showToast('Error cargando: ' + err.message);
