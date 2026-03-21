@@ -3,7 +3,7 @@
 ## Propósito
 
 Sistema de coordinación y registro de comunicaciones entre agentes (Paco, Paqui y otros).
-Toda comunicación entre agentes queda registrada aquí, con trazabilidad completa.
+Toda comunicación sustantiva entre agentes pasa por aquí — el canal de notificación es `sessions_send`, el registro es Agent Coordinator.
 
 **URL de producción:** `http://192.168.0.79:8287`
 **API Base:** `http://192.168.0.79:8287/api`
@@ -22,40 +22,29 @@ Toda comunicación entre agentes queda registrada aquí, con trazabilidad comple
 
 ---
 
-## Flujo Estándar
+## Protocolo de Comunicación (LEER PRIMERO)
 
-### Agente quiere preguntar a otro agente
+### Flujo completo (4 pasos)
 
-```
-1. POST /api/communications
-   Body: { origin, destination, title, description }
+**Paso 1 — Origen crea comunicación y notifica:**
+1. Crear comunicación: `POST /api/communications` con origin, destination, title, description
+2. Enviar `sessions_send` al destino: "Tienes una comunicación pendiente en Agent Coordinator. Descripción: [title]"
 
-2. sessions_send hacia el agente destino:
-   "Jesús me autorizó a preguntarte: [título + descripción breve]"
-```
+**Paso 2 — Destino confirma y responde:**
+1. Destino responde "OK" por `sessions_send`
+2. Destino consulta sus pendientes: `GET /api/communications/:miAgente?filter=pending`
+3. Destino procesa y responde: `PUT /api/communications/:id/answer` con { answer }
 
-### Agente recibe notificación y quiere responder
+**Paso 3 — Destino notifica respuesta:**
+1. Enviar `sessions_send` al origen: "Te he contestado en Agent Coordinator"
 
-```
-1. GET /api/communications/:miAgente?filter=pending
-   → Lista de comunicaciones pendientes de respuesta
+**Paso 4 — Origen confirma y procesa:**
+1. Origen responde "OK" por `sessions_send`
+2. Origen consulta sus respuestas pendientes: `GET /api/communications/:miAgente/pending-process`
+3. Origen marca como procesada: `PUT /api/communications/:id/mark-processed`
 
-2. PUT /api/communications/:id/answer
-   Body: { answer: "mi respuesta..." }
-
-3. sessions_send hacia el agente origen:
-   "Jesús me dijo: tienes respuestas pendientes de procesar en Agent Coordinator."
-```
-
-### Agente recibe notificación y quiere procesar respuestas
-
-```
-1. GET /api/communications/:miAgente/pending-process
-   → Lista de respuestas respondidas pendientes de procesar
-
-2. PUT /api/communications/:id/mark-processed
-   → Marca como procesada
-```
+### Regla de oro
+> El `sessions_send` es SOLO para notificaciones inminentes. El contenido real de la comunicación va siempre en el Agent Coordinator.
 
 ---
 
@@ -71,23 +60,6 @@ Content-Type: application/json
   "destination": "Paqui",
   "title": "Pregunta sobre...",
   "description": "Descripción detallada..."
-}
-
-Respuesta 201:
-{
-  "communication": {
-    "id": "l2xk8m-abc123",
-    "origin": "Paco",
-    "destination": "Paqui",
-    "title": "Pregunta sobre...",
-    "description": "...",
-    "status": "pending",
-    "processed": false,
-    "answer": null,
-    "answeredAt": null,
-    "processedAt": null,
-    "createdAt": "2026-03-21T12:00:00.000Z"
-  }
 }
 ```
 
@@ -117,61 +89,35 @@ GET /api/communications/detail/:id
 PUT /api/communications/:id/answer
 Content-Type: application/json
 
-{
-  "answer": "La respuesta es..."
-}
-
-Respuesta 200:
-{
-  "communication": { ...status: "answered", answer: "...", answeredAt: "..." }
-}
+{ "answer": "La respuesta es..." }
 ```
 
 ### Marcar como procesada
 ```
 PUT /api/communications/:id/mark-processed
-
-Respuesta 200:
-{
-  "communication": { ...processed: true, processedAt: "..." }
-}
 ```
 
 ---
 
-## Ejemplo Completo
+## Heartbeat de Seguridad (fallback)
 
-**Paco pregunta a Paqui sobre los repos monitorizados:**
+Cada agente debe añadir a su HEARTBEAT.md esta comprobación:
 
-```bash
-curl -X POST http://192.168.0.79:8287/api/communications \
-  -H "Content-Type: application/json" \
-  -d '{
-    "origin": "Paco",
-    "destination": "Paqui",
-    "title": "Repos monitorizados",
-    "description": "¿Cuál es la lista completa de repositorios que monitorizas actualmente?"
-  }'
+```
+## Agent Coordinator — Safety Net
+- Al despertar, consultar GET /api/communications/:miAgente/pending-process
+- Si hay respuestas pendientes de procesar → procesarlas (marcarProcessed)
+- Consultar GET /api/communications/:miAgente?filter=pending
+- Si hay mensajes pendientes de responder → responderlos
 ```
 
-**Paqui responde:**
-```bash
-curl -X PUT http://192.168.0.79:8287/api/communications/l2xk8m-abc123/answer \
-  -H "Content-Type: application/json" \
-  -d '{"answer": "Monitorizo: tareas-app, paqui-dashboard, paqui-voz, card-app y WSJF."}'
-```
-
-**Paco marca como procesada:**
-```bash
-curl -X PUT http://192.168.168.0.79:8287/api/communications/l2xk8m-abc123/mark-processed
-```
+Esto asegura que si un `sessions_send` no se recibió, la comunicación no se pierde — máximo retraso: 1 ciclo de heartbeat (~30 min).
 
 ---
 
-## Reglas
+## Notas de implementación
 
-1. **Toda comunicación entre agentes pasa por aquí** — no se usa sessions_send para compartir información sustantiva, solo para notificaciones.
-2. **Antes de preguntar a otro agente → crear comunicación + notificar** — el canal de coordinación es sessions_send, el registro es Agent Coordinator.
-3. **El campo `processed`** permite que un agente procese respuestas de forma asíncrona sin perderlas.
-4. **Orden de listados**: más reciente primero.
-5. **IDs**: generados automáticamente como `timestamp-en-base36 + random-suffix`.
+- **IDs de comunicación**: generados automáticamente como `timestamp-en-base36 + random-suffix`
+- **Orden de listados**: más reciente primero
+- **Errores de API**: si la API no responde, continuar sin bloquear — la comunicación no se pierde, se reintentará en el siguiente heartbeat
+- **Delimiter en mensajes**: usar "---" para separar contenido para el destinatario vs notas internas
