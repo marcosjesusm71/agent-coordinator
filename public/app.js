@@ -1,5 +1,5 @@
 const API_BASE = '/api';
-let currentFilter = { agent: 'all', status: 'all' };
+let currentFilter = { agent: 'all', status: 'pending' };
 
 document.addEventListener('DOMContentLoaded', () => {
   loadCommunications();
