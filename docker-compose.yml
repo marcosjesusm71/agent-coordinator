@@ -1,0 +1,17 @@
+version: '3.8'
+services:
+  agent-coordinator:
+    image: agent-coordinator:latest
+    container_name: agent-coordinator
+    build: .
+    ports:
+      - "8287:3008"
+    environment:
+      - PORT=3008
+    restart: unless-stopped
+    networks:
+      - default
+
+networks:
+  default:
+    name: agent-coordinator-net

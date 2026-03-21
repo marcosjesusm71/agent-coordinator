@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agent Coordinator</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🤖 Agent Coordinator</h1>
+      <div class="filters">
+        <select id="agentFilter">
+          <option value="all">Todos los agentes</option>
+          <option value="Paco">Paco</option>
+          <option value="Paqui">Paqui</option>
+        </select>
+        <select id="statusFilter">
+          <option value="all">Todas</option>
+          <option value="pending">Pendientes</option>
+          <option value="answered">Respondidas</option>
+        </select>
+        <button id="refreshBtn">🔄 Actualizar</button>
+      </div>
+    </header>
+
+    <div id="list"></div>
+
+    <div id="detail" class="modal hidden">
+      <div class="modal-content">
+        <button class="close-btn" onclick="closeDetail()">✕</button>
+        <h2 id="detailTitle"></h2>
+        <dl>
+          <dt>Fecha</dt><dd id="detailDate"></dd>
+          <dt>Origen</dt><dd id="detailOrigin"></dd>
+          <dt>Destino</dt><dd id="detailDestination"></dd>
+          <dt>Estado</dt><dd id="detailStatus"></dd>
+          <dt>Descripción</dt><dd id="detailDescription"></dd>
+          <dt>Respuesta</dt><dd id="detailAnswer"></dd>
+        </dl>
+      </div>
+    </div>
+
+    <div id="toast" class="hidden"></div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
