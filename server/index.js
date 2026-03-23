@@ -18,11 +18,17 @@ app.use(express.static(publicPath));
 // ── Data helpers ──────────────────────────────────────────────────────────────
 
 function readData() {
-  if (!fs.existsSync(DATA_FILE)) {
+  try {
+    if (!fs.existsSync(DATA_FILE)) {
+      return { communications: [] };
+    }
+    const raw = fs.readFileSync(DATA_FILE, 'utf8');
+    if (!raw || raw.trim() === '') return { communications: [] };
+    return JSON.parse(raw);
+  } catch (err) {
+    console.error('Error reading/parsing state:', err);
     return { communications: [] };
   }
-  const raw = fs.readFileSync(DATA_FILE, 'utf8');
-  return JSON.parse(raw);
 }
 
 function writeData(data) {
