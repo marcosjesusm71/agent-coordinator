@@ -180,6 +180,22 @@ app.put('/api/communications/:id/mark-processed', (req, res) => {
 
 // ── GET /communications/:id ───────────────────────────────────────────────────
 
+app.get('/api/debug', (req, res) => {
+  try {
+    const info = {
+      __dirname,
+      cwd: process.cwd(),
+      publicPath,
+      exists: fs.existsSync(publicPath),
+      contents: fs.readdirSync(__dirname),
+      publicContents: fs.existsSync(publicPath) ? fs.readdirSync(publicPath) : 'NOT FOUND'
+    };
+    res.json(info);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/communications/detail/:id', (req, res) => {
   try {
     const { id } = req.params;
