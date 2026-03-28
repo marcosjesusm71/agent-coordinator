@@ -67,7 +67,7 @@ function renderList(communications) {
     return;
   }
   list.innerHTML = communications.map(c => {
-    return '<div class="list-item" onclick="openDetail(\''' + c.id + '''' + '\'"' + ')>' +
+    return '<div class="list-item" onclick="openDetail(\'' + c.id + '\')">' +
       '<span class="date">' + formatDate(c.createdAt) + '</span>' +
       '<span class="origin">' + c.origin + '</span>' +
       '<span class="destination">' + c.destination + '</span>' +
