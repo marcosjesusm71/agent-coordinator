@@ -109,6 +109,7 @@ function showDetail(c) {
   document.getElementById('detailDestination').textContent = c.destination;
   document.getElementById('detailStatus').innerHTML = statusBadge(c);
   document.getElementById('detailDescription').textContent = c.description || '—';
+  document.getElementById('detailAction').textContent = c.action || '—';
   if (c.answer) {
     document.getElementById('detailAnswer').innerHTML =
       '<strong>' + (c.answeredAt ? formatDateTime(c.answeredAt) : '') + '</strong><br>' + escapeHtml(c.answer);
