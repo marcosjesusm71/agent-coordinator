@@ -95,7 +95,7 @@ app.get('/api/communications/:agent/pending-process', (req, res) => {
 
 app.post('/api/communications', (req, res) => {
   try {
-    const { origin, destination, title, description } = req.body;
+    const { origin, destination, title, description, action } = req.body;
 
     if (!origin || !destination || !title) {
       return res.status(400).json({ error: 'origin, destination and title are required' });
@@ -109,6 +109,7 @@ app.post('/api/communications', (req, res) => {
       destination,
       title,
       description: description || '',
+      action: action || null,
       status: 'pending',
       processed: false,
       answer: null,
