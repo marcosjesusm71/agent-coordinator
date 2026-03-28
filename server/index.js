@@ -58,6 +58,9 @@ app.get('/api/communications/:agent', (req, res) => {
     } else if (filter === 'answered') {
       // Communications answered for this agent (is origin + answered)
       results = results.filter(c => c.origin === agent && c.status === 'answered');
+    } else if (filter === 'processed') {
+      // Communications that have been processed (answered + processed = true)
+      results = results.filter(c => c.status === 'answered' && c.processed === true);
     }
 
     // Sort by createdAt descending (most recent first)
@@ -184,6 +187,27 @@ app.put('/api/communications/:id/mark-processed', (req, res) => {
   }
 });
 
+// ── DELETE /communications/:id ──────────────────────────────────────────────
+
+app.delete('/api/communications/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const data = readData();
+    const index = data.communications.findIndex(c => c.id === id);
+
+    if (index === -1) {
+      return res.status(404).json({ error: 'Communication not found' });
+    }
+
+    const deleted = data.communications.splice(index, 1)[0];
+    writeData(data);
+
+    res.json({ success: true, deleted: deleted.id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── GET /communications/:id ───────────────────────────────────────────────────
 
 app.get('/api/debug', (req, res) => {
@@ -219,5 +243,5 @@ app.get('/api/communications/detail/:id', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Agent Coordinator API running on port ${PORT}`);
+  console.log('Agent Coordinator API running on port ' + PORT);
 });

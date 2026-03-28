@@ -21,8 +21,9 @@
         </select>
         <select id="statusFilter">
           <option value="pending" selected>Pendientes</option>
-          <option value="all">Todas</option>
           <option value="answered">Respondidas</option>
+          <option value="processed">Finalizadas</option>
+          <option value="all">Todas</option>
         </select>
         <button id="refreshBtn">🔄 Actualizar</button>
       </div>
@@ -42,12 +43,15 @@
           <dt>Descripción</dt><dd id="detailDescription"></dd>
           <dt>Respuesta</dt><dd id="detailAnswer"></dd>
         </dl>
+        <div class="detail-actions">
+          <button id="deleteBtn" class="btn-delete">🗑️ Eliminar</button>
+        </div>
       </div>
     </div>
 
     <div id="toast" class="hidden"></div>
   </div>
 
-  <script src="app.js?v=2"></script>
+  <script src="app.js?v=3"></script>
 </body>
 </html>

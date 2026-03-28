@@ -3,17 +3,14 @@ let currentFilter = { agent: 'all', status: 'pending' };
 
 document.addEventListener('DOMContentLoaded', () => {
   loadCommunications();
-
   document.getElementById('agentFilter').addEventListener('change', (e) => {
     currentFilter.agent = e.target.value;
     loadCommunications();
   });
-
   document.getElementById('statusFilter').addEventListener('change', (e) => {
     currentFilter.status = e.target.value;
     loadCommunications();
   });
-
   document.getElementById('refreshBtn').addEventListener('click', loadCommunications);
 });
 
@@ -23,15 +20,11 @@ async function loadCommunications() {
     if (currentFilter.status !== 'all') {
       params.set('filter', currentFilter.status);
     }
-
-    let url = `${API_BASE}/communications/${currentFilter.agent}`;
+    let url = API_BASE + '/communications/' + currentFilter.agent;
     if (currentFilter.agent === 'all') {
-      // Fetch all and deduplicate; when filter=pending, fetch without param and filter client-side
-      // (API filter=pending is destination-based, not what we want for 'all')
-      const paramsAll = new URLSearchParams();
       const [paco, paqui] = await Promise.all([
-        fetchWrap(`${API_BASE}/communications/Paco`),
-        fetchWrap(`${API_BASE}/communications/Paqui`)
+        fetchWrap(API_BASE + '/communications/Paco'),
+        fetchWrap(API_BASE + '/communications/Paqui')
       ]);
       let all = [...paco.communications, ...paqui.communications];
       const seen = new Map();
@@ -40,15 +33,20 @@ async function loadCommunications() {
       if (currentFilter.status === 'pending') {
         all = all.filter(c => c.status === 'pending');
       } else if (currentFilter.status === 'answered') {
-        all = all.filter(c => c.status === 'answered');
+        all = all.filter(c => c.status === 'answered' && !c.processed);
+      } else if (currentFilter.status === 'processed') {
+        all = all.filter(c => c.status === 'answered' && c.processed);
       }
       renderList(all);
       return;
     }
-
-    let res = await fetchWrap(`${API_BASE}/communications/${currentFilter.agent}?${params}`);
-    // When a specific agent is selected, show only communications they initiated
+    let res = await fetchWrap(url + '?' + params);
     res.communications = res.communications.filter(c => c.origin === currentFilter.agent);
+    if (currentFilter.status === 'answered') {
+      res.communications = res.communications.filter(c => c.status === 'answered' && !c.processed);
+    } else if (currentFilter.status === 'processed') {
+      res.communications = res.communications.filter(c => c.status === 'answered' && c.processed);
+    }
     renderList(res.communications);
   } catch (err) {
     showToast('Error cargando: ' + err.message);
@@ -57,30 +55,26 @@ async function loadCommunications() {
 
 async function fetchWrap(url) {
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok) throw new Error('HTTP ' + res.status);
   return res.json();
 }
 
 function renderList(communications) {
   const list = document.getElementById('list');
-
-  // Sort by createdAt descending
   communications.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
   if (communications.length === 0) {
     list.innerHTML = '<div class="empty">No hay comunicaciones</div>';
     return;
   }
-
-  list.innerHTML = communications.map(c => `
-    <div class="list-item" onclick="openDetail('${c.id}')">
-      <span class="date">${formatDate(c.createdAt)}</span>
-      <span class="origin">${c.origin}</span>
-      <span class="destination">${c.destination}</span>
-      <span class="title">${escapeHtml(c.title)}</span>
-      <span class="check" title="${statusTitle(c)}">${statusIcon(c)}</span>
-    </div>
-  `).join('');
+  list.innerHTML = communications.map(c => {
+    return '<div class="list-item" onclick="openDetail(\''' + c.id + '''' + '\'"' + ')>' +
+      '<span class="date">' + formatDate(c.createdAt) + '</span>' +
+      '<span class="origin">' + c.origin + '</span>' +
+      '<span class="destination">' + c.destination + '</span>' +
+      '<span class="title">' + escapeHtml(c.title) + '</span>' +
+      '<span class="check" title="' + statusTitle(c) + '">' + statusIcon(c) + '</span>' +
+    '</div>';
+  }).join('');
 }
 
 function statusIcon(c) {
@@ -101,7 +95,7 @@ function statusTitle(c) {
 
 async function openDetail(id) {
   try {
-    const res = await fetchWrap(`${API_BASE}/communications/detail/${id}`);
+    const res = await fetchWrap(API_BASE + '/communications/detail/' + id);
     showDetail(res.communication);
   } catch (err) {
     showToast('Error: ' + err.message);
@@ -115,15 +109,32 @@ function showDetail(c) {
   document.getElementById('detailDestination').textContent = c.destination;
   document.getElementById('detailStatus').innerHTML = statusBadge(c);
   document.getElementById('detailDescription').textContent = c.description || '—';
-
   if (c.answer) {
     document.getElementById('detailAnswer').innerHTML =
-      `<strong>${c.answeredAt ? formatDateTime(c.answeredAt) : ''}</strong><br>${escapeHtml(c.answer)}`;
+      '<strong>' + (c.answeredAt ? formatDateTime(c.answeredAt) : '') + '</strong><br>' + escapeHtml(c.answer);
   } else {
     document.getElementById('detailAnswer').textContent = '—';
   }
-
+  const deleteBtn = document.getElementById('deleteBtn');
+  deleteBtn.onclick = () => deleteCommunication(c.id);
   document.getElementById('detail').classList.remove('hidden');
+}
+
+async function deleteCommunication(id) {
+  if (!confirm('¿Eliminar esta conversación?')) return;
+  try {
+    const res = await fetch(API_BASE + '/communications/' + id, { method: 'DELETE' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    closeDetail();
+    loadCommunications();
+    showToast('Conversación eliminada');
+  } catch (err) {
+    showToast('Error eliminando: ' + err.message);
+  }
+}
+
+function closeDetail() {
+  document.getElementById('detail').classList.add('hidden');
 }
 
 function statusBadge(c) {
@@ -134,10 +145,6 @@ function statusBadge(c) {
       : '<span class="badge answered">Respondida</span>';
   }
   return '—';
-}
-
-function closeDetail() {
-  document.getElementById('detail').classList.add('hidden');
 }
 
 function formatDate(iso) {
@@ -166,7 +173,6 @@ function showToast(msg) {
   setTimeout(() => t.classList.add('hidden'), 3000);
 }
 
-// Close modal on outside click
 document.addEventListener('click', (e) => {
   const modal = document.getElementById('detail');
   if (e.target === modal) closeDetail();
